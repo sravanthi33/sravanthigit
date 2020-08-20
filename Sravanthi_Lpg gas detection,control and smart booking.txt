@@ -1,0 +1,402 @@
+
+#include <LiquidCrystal.h>
+#include <stdio.h>
+#include <SoftwareSerial.h>
+
+SoftwareSerial mySerial(8, 9);
+
+LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
+ 
+
+int units=0,amount=0;
+ 
+ char pastnumber[21];
+ char pastnumber1[11],pastnumber2[11];
+ 
+ 
+ char igns='0',alcs='0';
+ char password[5];
+
+int sts1=0,sts2=0;
+
+int sti=0;
+String inputString = "";         // a string to hold incoming data
+boolean stringComplete = false;  // whether the string is complete
+
+
+int m1a       = 10;
+int m1b       = 11;
+
+int buzzer    = 13;
+
+
+int lpgv=0,soundv=0,rtr=0;
+
+int current1=0,current2=0,current3=0,current4=0;
+unsigned int cntl=0;
+int rtr1=0;
+
+float voltage1=0,weight=0;
+
+void okcheck0()
+{
+  unsigned char rcr;
+  do{
+      rcr = Serial.read();
+    }while(rcr != 'K');
+}
+
+void okcheck()
+{
+  unsigned char rcr;
+  do{
+      rcr = mySerial.read();
+    }while(rcr != 'K');
+}
+
+
+
+void beep()
+{
+  digitalWrite(buzzer, LOW);delay(2000);digitalWrite(buzzer, HIGH);
+}
+void setup()
+{
+ Serial.begin(9600);serialEvent();
+ mySerial.begin(9600);
+ 
+   pinMode(m1a, OUTPUT);
+   pinMode(m1b, OUTPUT);
+   pinMode(buzzer, OUTPUT);
+
+  // initialize serial:
+ 
+   digitalWrite(m1a,LOW);
+   digitalWrite(m1b,LOW);
+   digitalWrite(buzzer,HIGH);
+   
+  //serialEvent();
+
+   // set up the LCD's number of columns and rows:
+  lcd.begin(16, 2);lcd.cursor();
+  // Print a message to the LCD.
+  lcd.print("Aut LPG Cylinder Booking");
+
+  delay(2000);
+
+  gsminit();
+   
+   lcd.clear();
+   lcd.setCursor(0,0);
+   lcd.print("LPG:");   //5,0  
+   
+   lcd.setCursor(0,1);
+   lcd.print("Cyl Wt:");//8,1
+
+}
+
+
+void loop()
+{  
+  lpgv = analogRead(A1);
+  lcd.setCursor(5,0);convertl(lpgv);
+
+  if(lpgv < 200)
+    {
+        sts1++;if(sts1 >= 2){sts1=2;}
+        if(sts1 == 1)
+          { beep();
+            digitalWrite(m1a,LOW);digitalWrite(m1b,HIGH);
+            delay(2000);
+            digitalWrite(m1a,LOW);digitalWrite(m1b,LOW);
+            //SMS
+
+           
+            Serial.write("AT+CMGS=\"");
+            Serial.write(pastnumber1);
+            Serial.write("\"\r\n"); delay(3000);
+            Serial.write("LPG Gas Leakage Detected Cylinder-1234\r\n");
+            Serial.write(0x1A);     delay(4000);  
+
+              delay(4000);delay(3000);
+   
+            Serial.write("AT+CMGS=\"");
+            Serial.write(pastnumber2);
+            Serial.write("\"\r\n"); delay(3000);
+            Serial.write("LPG Gas Leakage Detected Cylinder-1234\r\n");
+            Serial.write(0x1A);     delay(4000);  
+
+          }
+    }
+  else
+    {
+        sts1=0;
+    }
+    delay(250);
+ 
+   voltage1 = analogRead(A0);
+   voltage1 = (voltage1 * (5.0/1023.0));
+   weight = ((voltage1 - 0.76)*4.32);
+   lcd.setCursor(8,1);lcd.print(weight);
+
+   if(weight >= 0.2 && weight <= 2.5)
+     {
+      //SMS
+        sts2++;if(sts2 >= 2){sts2=2;}
+        if(sts2 == 1)
+          {
+            delay(3000);
+            beep();
+            Serial.write("AT+CMGS=\"");
+            Serial.write(pastnumber1);
+            Serial.write("\"\r\n"); delay(3000);
+            Serial.write("Cylinder-1234 Empty-Automatic Booking\r\n");
+            Serial.write(0x1A);     delay(4000);  
+
+              delay(4000);delay(3000);
+   
+            Serial.write("AT+CMGS=\"");
+            Serial.write(pastnumber2);
+            Serial.write("\"\r\n"); delay(3000);
+            Serial.write("Cylinder-1234 Empty-Already Booked\r\n");
+            Serial.write(0x1A);     delay(4000);  
+
+           
+            //SMS
+          }
+     }
+   else
+     {
+        sts2=0;
+     }
+    delay(250);  
+}
+
+         
+ 
+
+
+void serialEvent()
+{
+  while (Serial.available())
+        {
+         
+         char inChar = (char)Serial.read();
+           //sti++;
+           //inputString += inChar;
+          if(inChar == '*')
+            {sti=1;
+             //  stringComplete = true;
+              gchr = inputString[sti-1]
+            }
+          if(sti == 1)
+            {
+                inputString += inChar;
+            }
+          if(inChar == '#')
+            {sti=0;
+              stringComplete = true;      
+            }
+         
+int readSerial(char result[])
+{
+  int i = 0;
+  while (1)
+  {
+    while (Serial.available() > 0)
+    {
+      char inChar = Serial.read();
+      if (inChar == '\n')
+         {
+          result[i] = '\0';
+          Serial.flush();
+          return 0;
+         }
+      if (inChar != '\r')
+         {
+          result[i] = inChar;
+          i++;
+         }
+    }
+  }
+}
+
+
+
+void gsminit()
+{
+  Serial.write("AT\r\n");                   okcheck0();
+  Serial.write("ATE0\r\n");                 okcheck0();
+  Serial.write("AT+CMGF=1\r\n");            okcheck0();
+  Serial.write("AT+CNMI=1,2,0,0\r\n");      okcheck0();
+  Serial.write("AT+CSMP=17,167,0,0\r\n");   okcheck0();
+   
+  lcd.clear();
+  lcd.print("SEND MSG STORE");
+  lcd.setCursor(0,1);
+  lcd.print("MOBILE NUMBER");  
+  do{
+     rcv = Serial.read();
+    }while(rcv != '*');
+     readSerial(pastnumber);
+
+  pastnumber1[0]=pastnumber[0];
+  pastnumber1[1]=pastnumber[1];
+  pastnumber1[2]=pastnumber[2];
+  pastnumber1[3]=pastnumber[3];
+  pastnumber1[4]=pastnumber[4];
+  pastnumber1[5]=pastnumber[5];
+  pastnumber1[6]=pastnumber[6];
+  pastnumber1[7]=pastnumber[7];
+  pastnumber1[8]=pastnumber[8];
+  pastnumber1[9]=pastnumber[9];
+  pastnumber1[10]='\0';
+ 
+  pastnumber2[0]=pastnumber[10];
+  pastnumber2[1]=pastnumber[11];
+  pastnumber2[2]=pastnumber[12];
+  pastnumber2[3]=pastnumber[13];
+  pastnumber2[4]=pastnumber[14];
+  pastnumber2[5]=pastnumber[15];
+  pastnumber2[6]=pastnumber[16];
+  pastnumber2[7]=pastnumber[17];
+  pastnumber2[8]=pastnumber[18];
+  pastnumber2[9]=pastnumber[19];
+  pastnumber2[10]='\0';
+
+ 
+  lcd.clear();
+  lcd.print(pastnumber1);
+pastnumber1[10]='\0';
+  lcd.setCursor(0,1);
+  lcd.print(pastnumber2);
+pastnumber2[10]='\0';
+
+    Serial.write("AT+CMGS=\"");
+    Serial.write(pastnumber1);
+    Serial.write("\"\r\n"); delay(3000);
+    Serial.write("Mobile no1. registered\r\n");
+    Serial.write(0x1A);     delay(4000);  
+
+    delay(4000);delay(3000);
+   
+    Serial.write("AT+CMGS=\"");
+    Serial.write(pastnumber2);
+    Serial.write("\"\r\n"); delay(3000);
+    Serial.write("Mobile no2. registered\r\n");
+    Serial.write(0x1A);     delay(4000);  
+   
+  //delay(1000);
+}
+
+
+void converts(unsigned int value)
+{
+  unsigned int a,b,c,d,e,f,g,h;
+
+      a=value/10000;
+      b=value%10000;
+      c=b/1000;
+      d=b%1000;
+      e=d/100;
+      f=d%100;
+      g=f/10;
+      h=f%10;
+
+
+      a=a|0x30;              
+      c=c|0x30;
+      e=e|0x30;
+      g=g|0x30;              
+      h=h|0x30;
+   
+     
+   Serial.write(a);
+   Serial.write(c);
+   Serial.write(e);
+   Serial.write(g);
+   Serial.write(h);
+}
+
+void convertl(unsigned int value)
+{
+  unsigned int a,b,c,d,e,f,g,h;
+
+      a=value/10000;
+      b=value%10000;
+      c=b/1000;
+      d=b%1000;
+      e=d/100;
+      f=d%100;
+      g=f/10;
+      h=f%10;
+
+
+      a=a|0x30;              
+      c=c|0x30;
+      e=e|0x30;
+      g=g|0x30;              
+      h=h|0x30;
+   
+     
+  // lcd.write(a);
+  // lcd.write(c);
+   lcd.write(e);
+   lcd.write(g);
+   lcd.write(h);
+}
+
+
+
+void converts0(unsigned int value)
+{
+  unsigned int a,b,c,d,e,f,g,h;
+
+      a=value/10000;
+      b=value%10000;
+      c=b/1000;
+      d=b%1000;
+      e=d/100;
+      f=d%100;
+      g=f/10;
+      h=f%10;
+
+
+      a=a|0x30;              
+      c=c|0x30;
+      e=e|0x30;
+      g=g|0x30;              
+      h=h|0x30;
+   
+     
+   mySerial.write(a);
+   mySerial.write(c);
+   mySerial.write(e);
+   mySerial.write(g);
+   mySerial.write(h);
+}
+
+
+void convertk(unsigned int value)
+{
+  unsigned int a,b,c,d,e,f,g,h;
+
+      a=value/10000;
+      b=value%10000;
+      c=b/1000;
+      d=b%1000;
+      e=d/100;
+      f=d%100;
+      g=f/10;
+      h=f%10;
+
+
+      a=a|0x30;              
+      c=c|0x30;
+      e=e|0x30;
+      g=g|0x30;              
+      h=h|0x30;
+   
+   lcd.write(h);
+}
+
